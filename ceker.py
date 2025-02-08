@@ -1,12 +1,10 @@
 import os
-import requests
 import logging
 from telegram import Update, InputFile
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Konfigurasi
 BOT_TOKEN = "7577324092:AAFMm1zWb9D5p4f0xUkbEScks7QyQ3zVaaY"
-API_URL = "http://147.139.167.176:8000/check-emails/"  # Ganti dengan URL API Anda
 
 # Setup logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -30,31 +28,30 @@ def handle_file(update: Update, context: CallbackContext):
 
     update.message.reply_text("⏳ Sedang memproses file...")
 
-    # Kirim file ke API
-    with open(file_path, "rb") as f:
-        response = requests.post(API_URL, files={"file": f})
+    # Baca isi file
+    with open(file_path, "r") as f:
+        emails = f.readlines()
 
-    if response.status_code != 200:
-        update.message.reply_text("❌ Terjadi kesalahan saat memeriksa email.")
-        return
+    valid_emails = []
+    invalid_emails = []
 
-    result = response.json()
-    
+    # Cek apakah email memiliki ekstensi @unima.ac.id
+    for email in emails:
+        email = email.strip()
+        if email.endswith("@unima.ac.id"):
+            valid_emails.append(email)
+        else:
+            invalid_emails.append(email)
+
     # Buat hasil dalam bentuk teks
-    result_text = f"📊 Hasil Pengecekan ({result['total_checked']} email dicek):\n"
-    result_txt_content = ""
-    
-    for res in result["results"]:
-        status = "✅ Valid" if res["exists"] else "❌ Tidak Valid"
-        result_text += f"- {res['email']} → {status}\n"
-        result_txt_content += f"{res['email']} → {status}\n"
-
+    result_text = f"📊 Hasil Pengecekan:\n✅ Valid: {len(valid_emails)}\n❌ Tidak Valid: {len(invalid_emails)}"
     update.message.reply_text(result_text)
 
     # Simpan hasil ke file
     result_file_path = "downloads/result.txt"
     with open(result_file_path, "w") as result_file:
-        result_file.write(result_txt_content)
+        result_file.write("✅ Email Valid:\n" + "\n".join(valid_emails) + "\n\n")
+        result_file.write("❌ Email Tidak Valid:\n" + "\n".join(invalid_emails) + "\n")
 
     # Kirim file hasil ke pengguna
     with open(result_file_path, "rb") as result_file:
